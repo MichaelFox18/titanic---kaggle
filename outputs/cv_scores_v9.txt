@@ -1,0 +1,18 @@
+Iteration 9 -- Multi-seed RF averaging
+==================================================
+
+Seeds used: [42, 0, 1, 7, 13]
+
+Per-seed CV (10-fold):
+  seed 42: 0.8529
+  seed  0: 0.8507
+  seed  1: 0.8529
+  seed  7: 0.8518
+  seed 13: 0.8507
+
+Mean of per-seed CVs:           0.8518
+Averaged-ensemble OOF accuracy: 0.8541
+Delta:                          +0.0023
+
+Test predicted survival rate:   0.3589
+Train survival rate:            0.3838

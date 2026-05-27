@@ -87,9 +87,70 @@ def extract_title(name: str) -> str:
 # ----------------------------------------------------------------------------
 # Main pipeline
 # ----------------------------------------------------------------------------
-def build_features() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
+def _add_family_survival(combined: pd.DataFrame, y_train: pd.Series, n_train: int) -> pd.DataFrame:
+    """
+    FamilySurvival: for each passenger, look at OTHER members of their
+    family / ticket group and check whether any of them are known (from
+    train labels) to have survived or died.
+
+    Encoding:
+      1.0 -> at least one OTHER group member survived in train
+      0.0 -> at least one OTHER group member died in train, AND nobody
+             else in the group is known to have survived
+      0.5 -> no group info (alone, or only self in group)
+
+    This is the single highest-impact "trick" feature on this dataset:
+    families and ticket-mates very often shared fate, so knowing what
+    happened to a passenger's relatives is a strong proxy when their
+    own outcome is unknown (test set).
+
+    Two grouping keys are used and combined:
+      (1) Surname + Fare  -- catches related passengers even on
+          different tickets
+      (2) Ticket          -- catches non-family travel companions
+    """
+    df = combined.copy()
+    df["Surname"] = df["Name"].str.split(",").str[0].str.strip()
+
+    # Attach training labels (NaN for test rows). We never read test
+    # labels here because they're NaN -- only train labels propagate.
+    df["_y"] = np.nan
+    df.loc[: n_train - 1, "_y"] = y_train.values
+
+    fs = pd.Series(0.5, index=df.index, dtype=float)
+
+    # For each grouping scheme, compute per-row "did any OTHER member
+    # of my group survive / die in train?" without an explicit row loop.
+    # Trick: sum of 1-labels across the group, minus own label if it's 1,
+    # tells us if any OTHER member survived. Same for died (0-labels).
+    is_survived = (df["_y"] == 1).astype(int)
+    is_died = (df["_y"] == 0).astype(int)
+
+    for keys in (["Surname", "Fare"], ["Ticket"]):
+        grouper = [df[k] for k in keys]
+        others_survived = is_survived.groupby(grouper).transform("sum") - is_survived
+        others_died = is_died.groupby(grouper).transform("sum") - is_died
+
+        fs = np.where(others_survived > 0, 1.0, fs)
+        fs = np.where((others_died > 0) & (fs != 1.0), 0.0, fs)
+        fs = pd.Series(fs, index=df.index)
+
+    df["FamilySurvival"] = fs.astype(float)
+    return df.drop(columns=["Surname", "_y"])
+
+
+def build_features(
+    include_family_survival: bool = False,
+    include_ticket_group: bool = False,
+) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """
     Load train + test, engineer features on the combined set, then split.
+
+    Parameters
+    ----------
+    include_family_survival : bool
+        If True, add the FamilySurvival feature (uses train labels only;
+        no test leakage). Off by default to keep iter1/iter2 reproducible.
 
     Returns
     -------
@@ -217,6 +278,28 @@ def build_features() -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     combined["TitlePclass"] = (
         combined["Title"] + "_" + combined["Pclass"].astype(str)
     )
+
+    # --- FamilySurvival (optional) ---
+    # Uses train labels only. Must run BEFORE we drop Name/Ticket since
+    # it needs both for grouping.
+    if include_family_survival:
+        combined = _add_family_survival(combined, y_train, n_train)
+
+    # --- Ticket-group features (optional) ---
+    # TicketGroupSize counts how many people share each ticket. This is
+    # different from FamilySize (SibSp + Parch + 1): a master's servant
+    # or a business companion shares a ticket but isn't recorded as
+    # "sibling" or "parent". On Titanic, ticket-sharing groups often
+    # acted together (e.g. waited for each other near a lifeboat).
+    #
+    # FarePerTicketPerson corrects FarePerPerson: dividing Fare by
+    # FamilySize gives the wrong per-head price when 5 unrelated people
+    # share a ticket. Dividing by TicketGroupSize is the honest measure
+    # of what each individual paid for accommodation.
+    if include_ticket_group:
+        ticket_counts = combined["Ticket"].value_counts()
+        combined["TicketGroupSize"] = combined["Ticket"].map(ticket_counts).astype(int)
+        combined["FarePerTicketPerson"] = combined["Fare"] / combined["TicketGroupSize"]
 
     # --- Drop raw columns we've fully extracted from ---
     # Name was useful only for Title. Ticket has ~700 unique values --

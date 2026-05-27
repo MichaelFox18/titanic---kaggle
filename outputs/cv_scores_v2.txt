@@ -1,0 +1,25 @@
+Iteration 2 -- Soft-voting ensemble (RF + GB + XGB + LGB)
+============================================================
+
+Per-model 10-fold CV means:
+  rf   : 0.8271  (std 0.0217)
+  gb   : 0.8338  (std 0.0315)
+  xgb  : 0.8238  (std 0.0268)
+  lgb  : 0.8181  (std 0.0319)
+
+Ensemble per-fold accuracy:
+  fold  1: 0.9000
+  fold  2: 0.8315
+  fold  3: 0.8315
+  fold  4: 0.8427
+  fold  5: 0.7865
+  fold  6: 0.8315
+  fold  7: 0.8539
+  fold  8: 0.7978
+  fold  9: 0.8652
+  fold 10: 0.8090
+
+Ensemble Mean : 0.8349
+Ensemble Std  : 0.0316
+Ensemble Min  : 0.7865
+Ensemble Max  : 0.9000

@@ -1,0 +1,35 @@
+Iteration 3 -- RF + FamilySurvival feature
+==================================================
+
+Baseline (no FS) CV mean: 0.8271
+With FS         CV mean: 0.8417
+Delta:                    +0.0146
+
+Per-fold (with FS):
+  fold  1: 0.8667
+  fold  2: 0.8090
+  fold  3: 0.8315
+  fold  4: 0.8202
+  fold  5: 0.8315
+  fold  6: 0.8427
+  fold  7: 0.8764
+  fold  8: 0.8427
+  fold  9: 0.8764
+  fold 10: 0.8202
+
+Top 15 feature importances:
+  0.1362  Title_Mr
+  0.1134  Sex_male
+  0.1093  Sex_female
+  0.0826  FamilySurvival
+  0.0552  FarePerPerson
+  0.0493  TitlePclass_Mr_3
+  0.0476  Fare
+  0.0428  Pclass
+  0.0365  Age
+  0.0339  Title_Mrs
+  0.0311  Title_Miss
+  0.0306  FamilySize
+  0.0260  Deck_N
+  0.0175  SibSp
+  0.0175  FareBand

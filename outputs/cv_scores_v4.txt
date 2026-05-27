@@ -1,0 +1,33 @@
+Iteration 4 -- Optuna-tuned RF on iter 3 features
+============================================================
+
+Optuna best (repeated 5-fold x3): 0.8569
+Final 10-fold CV mean:             0.8574
+Final 10-fold CV std:              0.0286
+
+Best params:
+  n_estimators: 600
+  max_depth: 6
+  min_samples_leaf: 4
+  min_samples_split: 8
+  max_features: 0.5
+  max_samples: 0.8625863077514598
+  criterion: gini
+  class_weight: balanced_subsample
+
+Top 15 feature importances:
+  0.2242  Title_Mr
+  0.1137  Sex_female
+  0.1134  Sex_male
+  0.1074  FamilySurvival
+  0.1002  FarePerPerson
+  0.0591  Age
+  0.0555  Fare
+  0.0420  Pclass
+  0.0300  FamilySize
+  0.0230  TitlePclass_Mr_3
+  0.0172  Deck_N
+  0.0137  SibSp
+  0.0079  FareBand
+  0.0076  TitlePclass_Miss_3
+  0.0075  Parch

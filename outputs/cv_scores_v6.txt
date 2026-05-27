@@ -1,0 +1,35 @@
+Iteration 6 -- iter 5 tuned RF + ticket-group features
+============================================================
+
+Baseline (iter 5 features) CV: 0.8507
+With ticket-group features:    0.8529
+Delta:                          +0.0022
+
+Per-fold (with ticket-group):
+  fold  1: 0.9000
+  fold  2: 0.8315
+  fold  3: 0.8202
+  fold  4: 0.8539
+  fold  5: 0.8202
+  fold  6: 0.8539
+  fold  7: 0.8876
+  fold  8: 0.8764
+  fold  9: 0.8539
+  fold 10: 0.8315
+
+Top 15 feature importances:
+  0.1790  Title_Mr
+  0.1322  Sex_female
+  0.1280  Sex_male
+  0.1183  FamilySurvival
+  0.0683  FarePerTicketPerson
+  0.0668  FarePerPerson
+  0.0586  Pclass
+  0.0388  Fare
+  0.0381  Age
+  0.0267  TicketGroupSize
+  0.0229  FamilySize
+  0.0216  TitlePclass_Mr_3
+  0.0192  Deck_N
+  0.0095  Title_Master
+  0.0076  Title_Rare

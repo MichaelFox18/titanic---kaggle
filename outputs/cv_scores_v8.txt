@@ -1,0 +1,19 @@
+Iteration 8 -- Stacking / blending investigation
+============================================================
+
+RF OOF accuracy:  0.8530
+XGB OOF accuracy: 0.8451
+RF/XGB disagreement rate: 0.0505
+
+Blend strategy leaderboard (OOF):
+Strategy       w_rf   Acc      OOF rate    
+weighted       1.0    0.8530   0.3311
+weighted       0.9    0.8552   0.3356
+weighted       0.8    0.8541   0.3389
+weighted       0.7    0.8563   0.3412
+weighted       0.5    0.8519   0.3457
+logreg-meta    meta   0.8507   0.3446
+
+Chosen: weighted w_rf=0.7 CV=0.8563
+Final submission predicted rate: 0.3708
+LogReg meta coefs (rf, xgb): (+3.3143, +2.3640)

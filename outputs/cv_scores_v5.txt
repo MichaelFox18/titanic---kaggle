@@ -1,0 +1,32 @@
+Iteration 5 -- Optuna-tuned RF, class_weight forced to None
+============================================================
+
+Optuna best (repeated 5-fold x2): 0.8530
+Final 10-fold CV mean:             0.8507
+Final 10-fold CV std:              0.0290
+
+Best params (class_weight forced to None):
+  n_estimators: 400
+  max_depth: 4
+  min_samples_leaf: 4
+  min_samples_split: 3
+  max_features: 0.5
+  max_samples: 0.6448931749101726
+  criterion: entropy
+
+Top 15 feature importances:
+  0.2008  Title_Mr
+  0.1290  FamilySurvival
+  0.1282  Sex_male
+  0.1176  Sex_female
+  0.0912  FarePerPerson
+  0.0668  Pclass
+  0.0482  Fare
+  0.0414  Age
+  0.0331  FamilySize
+  0.0237  TitlePclass_Mr_3
+  0.0209  Deck_N
+  0.0106  SibSp
+  0.0090  FareBand
+  0.0084  Title_Rare
+  0.0073  Title_Master
