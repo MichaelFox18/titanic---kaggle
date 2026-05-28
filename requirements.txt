@@ -7,3 +7,7 @@ optuna
 matplotlib
 seaborn
 jupyter
+
+# interactive learning app (app/)
+streamlit>=1.36
+plotly>=5.22
