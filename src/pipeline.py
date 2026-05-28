@@ -142,6 +142,7 @@ def _add_family_survival(combined: pd.DataFrame, y_train: pd.Series, n_train: in
 def build_features(
     include_family_survival: bool = False,
     include_ticket_group: bool = False,
+    extra_test_rows: pd.DataFrame | None = None,
 ) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """
     Load train + test, engineer features on the combined set, then split.
@@ -151,16 +152,28 @@ def build_features(
     include_family_survival : bool
         If True, add the FamilySurvival feature (uses train labels only;
         no test leakage). Off by default to keep iter1/iter2 reproducible.
+    include_ticket_group : bool
+        If True, add TicketGroupSize + FarePerTicketPerson (iter 6).
+    extra_test_rows : DataFrame, optional
+        Extra raw passenger rows (same columns as test.csv) to append to the
+        test set before feature engineering. They ride through the identical
+        pipeline — group-median imputation, FamilySurvival, one-hot alignment —
+        and come out as the last rows of X_test. Used by the learning app's
+        "build a passenger" screen for single-row inference. Default None
+        leaves behaviour byte-for-byte identical to every iteration script.
 
     Returns
     -------
     X_train : DataFrame of model-ready features for the 891 labeled rows
     y_train : Series of 0/1 survival labels
-    X_test  : DataFrame of model-ready features for the 418 unlabeled rows
+    X_test  : DataFrame of model-ready features for the test rows (418, plus
+              any extra_test_rows appended at the end)
     test_ids: PassengerId values for X_test (needed to build submission.csv)
     """
     train = pd.read_csv(DATA_DIR / "train.csv")
     test = pd.read_csv(DATA_DIR / "test.csv")
+    if extra_test_rows is not None:
+        test = pd.concat([test, extra_test_rows], ignore_index=True, sort=False)
 
     # Pull out what we need to remember before merging.
     # y is the label -- only train has it. We keep test_ids because the

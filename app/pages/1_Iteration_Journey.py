@@ -86,11 +86,19 @@ st.plotly_chart(fig, use_container_width=True)
 # --- selected iteration card ------------------------------------------------
 st.subheader(f"Iteration {selected.n} — {selected.approach}")
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("CV", f"{selected.cv:.3f}")
-m2.metric("Public LB", f"{selected.lb:.3f}")
+m1.metric("CV", f"{selected.cv:.3f}",
+          help="Cross-validation accuracy, measured locally on the 891 labeled training passengers. Our private "
+               "guess at quality before submitting anything.")
+m2.metric("Public LB", f"{selected.lb:.3f}",
+          help="The Kaggle public leaderboard score: accuracy on 418 hidden test passengers. The real answer — "
+               "but you only see it after submitting, and the project had a 10-submission budget.")
 gap_flag = "  ⚠️" if selected.gap > GAP_DANGER else ""
-m3.metric("CV–LB gap", f"{selected.gap:.3f}{gap_flag}")
-m4.metric("Outcome", "improved" if selected.good else "regressed")
+m3.metric("CV–LB gap", f"{selected.gap:.3f}{gap_flag}",
+          help=f"CV minus LB. A healthy model has a small, stable gap (~0.05 here). Above {GAP_DANGER:g} (⚠️) the "
+               f"model was fitting cross-validation quirks that didn't transfer to the real test set.")
+m4.metric("Outcome", "improved" if selected.good else "regressed",
+          help="Did this iteration beat the best leaderboard score that came before it? Half of them did not — "
+               "and the failures taught the most.")
 
 if selected.gap > GAP_DANGER:
     st.error(f"**{selected.verdict}.** The gap of {selected.gap:.3f} exceeds the {GAP_DANGER:g} danger line — this iteration's CV gain did not survive to the leaderboard.")
