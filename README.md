@@ -2,7 +2,7 @@
 
 Predicting which passengers survived the 1912 Titanic disaster, using the [Kaggle Titanic competition](https://www.kaggle.com/competitions/titanic) data. This repo is organized for **learning** as much as for placing on the leaderboard — every iteration is documented, every method explained, every failed experiment kept as a lesson.
 
-**Best result:** public leaderboard accuracy **0.80861** (iteration 9), with iteration 10's calibration-tuned variant submitted as the final attempt. For context, scores break down roughly:
+**Best result:** public leaderboard accuracy **0.80861** (iteration 9, a 5-seed Random Forest average). Iteration 10 tried to improve on it with threshold tuning and regressed to 0.794 — a documented cautionary tale, not a win. For context, scores break down roughly:
 
 | Strategy | Public LB |
 |---|---|
@@ -41,8 +41,8 @@ So a final LB of 0.80–0.81 lands solidly in the "strong honest ML" band, near 
 | 6 | Add TicketGroupSize / FarePerTicketPerson | 0.853 | **0.806** | **0.047** | ✅ Crossed 0.80 |
 | 7 | Tuned XGBoost solo | 0.845 | 0.782 | 0.063 | ❌ XGB underperforms |
 | 8 | 0.7 RF + 0.3 XGB blend | 0.856 | 0.792 | 0.064 | ❌ Stacking contagion |
-| 9 | 5-seed RF averaging | 0.854 | **0.809** | **0.045** | ✅ New best |
-| 10 | 5-seed RF + threshold tuning (t=0.47) | 0.855 | _pending_ | — | ? |
+| 9 | 5-seed RF averaging | 0.854 | **0.809** | **0.045** | ✅ Best result |
+| 10 | 5-seed RF + threshold tuning (t=0.47) | 0.855 | 0.794 | 0.061 | ❌ Threshold overfit |
 
 CV = mean 10-fold stratified cross-validation accuracy on the 891 training rows.
 LB = Kaggle's accuracy score on the 418-row test set after submitting `data/submission.csv`.
@@ -143,13 +143,15 @@ Tuned RF hyperparameters that mattered (from Optuna search in iter 5):
 - `criterion='entropy'` — vs default gini (marginal but real here)
 - `n_estimators=400` — diminishing returns above this
 
-### 4. Multi-seed averaging + threshold calibration
+### 4. Multi-seed averaging (and a threshold-tuning cautionary tale)
 
-Even a tuned RF has residual randomness from its own internal bagging. Iter 9 trained the same RF 5 times with different `random_state` values and averaged the predicted probabilities. CV gain was tiny (+0.23pt), but **LB gain matched it almost exactly (+0.24pt)** — a signal that the change was structural, not a CV-protocol artifact.
+Even a tuned RF has residual randomness from its own internal bagging. Iter 9 trained the same RF 5 times with different `random_state` values and averaged the predicted probabilities. CV gain was tiny (+0.23pt), but **LB gain matched it almost exactly (+0.24pt)** — a signal that the change was structural, not a CV-protocol artifact. This was the project's best result: **0.809**.
 
-Iter 10 added one more layer of calibration: **threshold tuning**. The standard 0.5 cutoff for binary classification assumes equal cost of false positives and false negatives at the natural class balance. But across every iteration, the model's predicted survival rate was consistently ~0.36 vs the true train rate of 0.384 — a 2-point under-prediction. Lowering the threshold to 0.47 (chosen by OOF accuracy + a predicted-rate sanity check) brings the test predicted rate to 0.383, essentially perfect calibration.
+Iter 10 then tried to squeeze out more with **threshold tuning**, and it *backfired* — a lesson worth more than a win. The standard 0.5 cutoff assumes equal cost of false positives and false negatives at the natural class balance. Across every iteration the model's predicted survival rate sat at ~0.36 vs the true train rate of 0.384 — a consistent 2-point under-prediction. Lowering the threshold to 0.47 (chosen by OOF accuracy) brought the test predicted rate to 0.383, *apparently* perfect calibration.
 
-These two techniques together are *low-variance* moves — they don't add model capacity, so they can't overfit in the traditional sense. The only risk is that the calibration value (threshold) is picked from a noisy CV signal, which we guard against with a sanity check on the predicted rate.
+But on the leaderboard it scored **0.794** — a 1.4pt *regression* from iter 9's 0.809, with the CV–LB gap widening to 0.061 (past the 0.06 danger line). The lesson: **matching the aggregate predicted rate is not the same as getting more individual predictions right.** The ~10 borderline passengers the lower threshold flipped from "died" to "survived" were, on net, flipped the wrong way. A threshold chosen to optimize CV accuracy is just one more parameter that can overfit the cross-validation protocol — exactly the trap that bit iters 4 and 8.
+
+So of the two techniques: multi-seed averaging was a real (if small) gain because its *mechanism* (variance reduction across independent fits) is structurally sound; threshold tuning looked principled but was a CV mirage in disguise. Iter 9 remains the project's best submission.
 
 ---
 
@@ -225,13 +227,15 @@ Train the iter-6 tuned RF five times with seeds [42, 0, 1, 7, 13]. Average the p
 
 CV gain was tiny (+0.23pt) — RF's internal bagging already does most of the variance reduction. But CV and LB moved together almost exactly (+0.24pt LB), the cleanest CV–LB tracking yet. **Lesson:** when a CV gain is small but its *mechanism* has clear statistical theory (variance reduction across independent fits), the LB gain typically shows up. Contrast with iters 4 and 8 where the CV gains came from optimization tricks that overfit the CV protocol itself.
 
-### Iteration 10 — Threshold tuning (LB: _pending_)
+### Iteration 10 — Threshold tuning (LB 0.794, -1.4pt vs iter 9) ❌
 
 Same 5-seed RF as iter 9, but with the prediction threshold optimized via OOF.
 
-Looking back at iters 1, 3, 5, 6, 9, every single one predicted a test survival rate of ~0.36, ~2 percentage points below the true train rate of 0.384. Consistent miscalibration. Iter 10 sweeps thresholds from 0.40 to 0.55 on the OOF probabilities and picks 0.47 (CV-best), which brings the final test predicted rate to 0.3828 — within 0.1% of train rate.
+Looking back at iters 1, 3, 5, 6, 9, every single one predicted a test survival rate of ~0.36, ~2 percentage points below the true train rate of 0.384. Consistent miscalibration. Iter 10 sweeps thresholds from 0.40 to 0.55 on the OOF probabilities and picks 0.47 (CV-best), which brings the final test predicted rate to 0.3828 — within 0.1% of train rate. OOF accuracy gain was small (+0.11pt, at the noise floor), and the predicted-rate sanity check passed cleanly.
 
-OOF accuracy gain was small (+0.11pt, at the noise floor), but the calibration argument is structural: the model was systematically under-confident on positive predictions, and threshold 0.47 corrects exactly that bias. The change flips ~10 borderline test predictions from 0 to 1.
+**It regressed to 0.794** — 1.4pt below iter 9, with the CV–LB gap widening to 0.061. The "perfect calibration" was a mirage. Matching the *aggregate* survival rate (0.383 vs 0.384) did not mean the model got more *individual* passengers right; the ~10 borderline predictions the lower threshold flipped were, on net, flipped the wrong way. A threshold picked to maximize CV accuracy is just another knob that can overfit the CV protocol, exactly like iter 4's `class_weight` and iter 8's blend weight. **Iter 9 (plain 5-seed RF, threshold 0.5) stays the project's best at 0.809.**
+
+The deeper lesson: the predicted-rate canary is a good detector of *over*-prediction danger (iter 4 drifted to 0.407 and we correctly distrusted it), but driving the predicted rate to *exactly* the train rate is not itself an optimization target. A well-calibrated aggregate and accurate individual predictions are different things.
 
 ---
 
@@ -241,7 +245,7 @@ These are the meta-lessons that emerged from the 10-iteration arc.
 
 1. **CV is a guess; LB is the answer.** Track the gap between them. A CV–LB gap of ~0.05 is normal for Titanic. >0.06 is a red flag. Iters 2, 4, 7, 8 all blew this out.
 
-2. **The predicted survival rate is a calibration smoke detector.** Train rate is 0.384. Models that predict ~0.36 are under by a healthy amount and safe. Models that predict 0.40+ are usually gaming class-imbalance tricks. Iter 4 was flagged in advance by this check; iter 10 used it as a sanity guard.
+2. **The predicted survival rate is a smoke detector for *over*-prediction, not an optimization target.** Train rate is 0.384. Models that predict 0.40+ are usually gaming class-imbalance tricks — iter 4 was flagged in advance this way. But the reverse doesn't hold: iter 10 drove the predicted rate to exactly 0.383 via threshold tuning and still *regressed* 1.4pt. A well-calibrated aggregate rate is not the same as accurate per-row predictions.
 
 3. **Higher CV does not mean higher LB on small datasets.** Iters 2, 4, 8 each had CV ≥ the eventual winner but LB worse. The cause every time: the CV gain came from fitting noise that didn't generalize. Iter 9 was the opposite pattern — tiny CV gain, but the mechanism (averaging independent fits) was sound.
 
@@ -346,8 +350,8 @@ Tempting: `df.dropna()`. But 20% of training Ages are missing — dropping them 
 **Why this works.** The train and test sets on Titanic share the same survival rate. A well-calibrated model should predict positives at roughly the same rate. If it doesn't, the model is biased — either over-predicting (false positives accumulate) or under-predicting (false negatives accumulate).
 
 **How we used it.**
-- As a *guard* against CV mirages (iter 4 was flagged in advance).
-- As a *signal* for threshold tuning (iter 10's threshold 0.47 was chosen partly because it brought predicted rate from 0.36 → 0.38).
+- As a *guard* against CV mirages — its best use. Iter 4's over-prediction (rate 0.407) was flagged in advance and correctly distrusted.
+- As a (mis)guided *signal* for threshold tuning — iter 10 lowered the threshold to push predicted rate from 0.36 → 0.38, which looked like calibration but regressed LB by 1.4pt. Driving the aggregate rate to exactly the train rate is **not** a valid optimization target; a well-calibrated aggregate and accurate per-row predictions are different things.
 
 ### Threshold Tuning
 
@@ -355,7 +359,7 @@ Tempting: `df.dropna()`. But 20% of training Ages are missing — dropping them 
 
 **The risk.** Threshold is one more dimension to overfit CV on. Iter 4 is the cautionary tale — a CV-optimal `class_weight` cost real points on LB.
 
-**The guardrail.** Validate the chosen threshold both by (a) OOF accuracy AND (b) the resulting predicted survival rate matching train rate. Iter 10 chose 0.47 because the OOF accuracy peaked there *and* the resulting test predicted rate landed within 0.1% of train rate (0.3828 vs 0.3838).
+**The guardrail (and its limit).** Iter 10 validated the chosen threshold by both (a) OOF accuracy peaking at 0.47 *and* (b) the resulting test predicted rate landing within 0.1% of train rate (0.3828 vs 0.3838). Both checks passed — and it *still* regressed 1.4pt on LB. The takeaway: those guardrails catch *over*-prediction (a rate that drifts high), but they cannot tell you whether moving the threshold flips borderline rows in the right direction. On this dataset, threshold tuning was a CV mirage despite passing every sanity check. Treat it as a knob that can overfit CV, not as free calibration.
 
 ### Out-Of-Fold (OOF) Predictions
 
@@ -383,7 +387,7 @@ A short list of choices I'd revisit on a future Titanic attempt, given what we k
 
 1. **Skip the ensemble / stacking experiments entirely.** Iters 2, 7, and 8 collectively burned 3 of 10 submissions to learn that boosting models hurt LB on this dataset. The right answer would have been to commit to tuned RF after iter 3 and spend those submissions on feature engineering instead.
 
-2. **Try threshold tuning earlier.** Every iteration from 1 onward under-predicted survival rate by ~2 percentage points — a clean miscalibration. If iter 10's threshold-tuning approach had been applied at iter 6, the iter-6 LB might have been ~0.812 instead of 0.806.
+2. **Trust the multi-seed result, not the threshold tweak.** Iter 9's variance-reduction gain was real; iter 10's threshold tuning regressed despite looking perfectly calibrated. A future attempt should lock in the 5-seed RF at threshold 0.5 and *not* spend a submission chasing aggregate-rate calibration — it's a CV mirage on this dataset.
 
 3. **Investigate one more feature angle.** TicketGroupSize captured ticket-sharing groups, but ticket-prefix patterns (e.g., "PC", "STON") encode booking-class information that might be more granular than Pclass alone. Worth a careful A/B.
 
